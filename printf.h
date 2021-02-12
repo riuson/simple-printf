@@ -62,5 +62,6 @@ int putchar(char c);
 
 #define printf simple_printf
 #define sprintf simple_sprintf
+#define snprintf simple_snprintf
 
 #endif /* __SIMPLE_PRINTF__ */

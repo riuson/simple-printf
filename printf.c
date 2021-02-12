@@ -31,12 +31,17 @@
 
 #include <stddef.h>
 #include <stdarg.h>
+#include <stdint.h>
 
 int putchar(int c);
 
-static void simple_outputchar(char **str, char c)
+static void simple_outputchar(char **str, const char *end, char c)
 {
 	if (str) {
+		if (end && *str >= end)	{
+			return;
+		}
+
 		**str = c;
 		++(*str);
 	} else {
@@ -49,7 +54,7 @@ enum flags {
 	PAD_RIGHT	= 2,
 };
 
-static int prints(char **out, const char *string, int width, int flags)
+static int prints(char **out, const char *end, const char *string, int width, int flags)
 {
 	int pc = 0, padchar = ' ';
 
@@ -64,16 +69,16 @@ static int prints(char **out, const char *string, int width, int flags)
 	}
 	if (!(flags & PAD_RIGHT)) {
 		for ( ; width > 0; --width) {
-			simple_outputchar(out, padchar);
+			simple_outputchar(out, end, padchar);
 			++pc;
 		}
 	}
 	for ( ; *string ; ++string) {
-		simple_outputchar(out, *string);
+		simple_outputchar(out, end, *string);
 		++pc;
 	}
 	for ( ; width > 0; --width) {
-		simple_outputchar(out, padchar);
+		simple_outputchar(out, end, padchar);
 		++pc;
 	}
 
@@ -82,7 +87,7 @@ static int prints(char **out, const char *string, int width, int flags)
 
 #define PRINT_BUF_LEN 64
 
-static int simple_outputi(char **out, long long i, int base, int sign, int width, int flags, int letbase)
+static int simple_outputi(char **out, const char *end, long long i, int base, int sign, int width, int flags, int letbase)
 {
 	char print_buf[PRINT_BUF_LEN];
 	char *s;
@@ -92,7 +97,7 @@ static int simple_outputi(char **out, long long i, int base, int sign, int width
 	if (i == 0) {
 		print_buf[0] = '0';
 		print_buf[1] = '\0';
-		return prints(out, print_buf, width, flags);
+		return prints(out, end, print_buf, width, flags);
 	}
 
 	if (sign && base == 10 && i < 0) {
@@ -113,7 +118,7 @@ static int simple_outputi(char **out, long long i, int base, int sign, int width
 
 	if (neg) {
 		if( width && (flags & PAD_ZERO) ) {
-			simple_outputchar (out, '-');
+			simple_outputchar (out, end, '-');
 			++pc;
 			--width;
 		}
@@ -122,11 +127,11 @@ static int simple_outputi(char **out, long long i, int base, int sign, int width
 		}
 	}
 
-	return pc + prints (out, s, width, flags);
+	return pc + prints (out, end, s, width, flags);
 }
 
 
-static int simple_vsprintf(char **out, char *format, va_list ap)
+static int simple_vsprintf(char **out, const char *end, char *format, va_list ap)
 {
 	int width, flags;
 	int pc = 0;
@@ -175,56 +180,56 @@ static int simple_vsprintf(char **out, char *format, va_list ap)
 			switch (*format) {
 				case('d'):
 					u.i = va_arg(ap, int);
-					pc += simple_outputi(out, u.i, 10, 1, width, flags, 'a');
+					pc += simple_outputi(out, end, u.i, 10, 1, width, flags, 'a');
 					break;
 
 				case('u'):
 					u.u = va_arg(ap, unsigned int);
-					pc += simple_outputi(out, u.u, 10, 0, width, flags, 'a');
+					pc += simple_outputi(out, end, u.u, 10, 0, width, flags, 'a');
 					break;
 
 				case('x'):
 					u.u = va_arg(ap, unsigned int);
-					pc += simple_outputi(out, u.u, 16, 0, width, flags, 'a');
+					pc += simple_outputi(out, end, u.u, 16, 0, width, flags, 'a');
 					break;
 
 				case('X'):
 					u.u = va_arg(ap, unsigned int);
-					pc += simple_outputi(out, u.u, 16, 0, width, flags, 'A');
+					pc += simple_outputi(out, end, u.u, 16, 0, width, flags, 'A');
 					break;
 
 				case('c'):
 					u.c = va_arg(ap, int);
 					scr[0] = u.c;
 					scr[1] = '\0';
-					pc += prints(out, scr, width, flags);
+					pc += prints(out, end, scr, width, flags);
 					break;
 
 				case('s'):
 					u.s = va_arg(ap, char *);
-					pc += prints(out, u.s ? u.s : "(null)", width, flags);
+					pc += prints(out, end, u.s ? u.s : "(null)", width, flags);
 					break;
 				case('l'):
 					++format;
 					switch (*format) {
 						case('d'):
 							u.li = va_arg(ap, long);
-							pc += simple_outputi(out, u.li, 10, 1, width, flags, 'a');
+							pc += simple_outputi(out, end, u.li, 10, 1, width, flags, 'a');
 							break;
 
 						case('u'):
 							u.lu = va_arg(ap, unsigned long);
-							pc += simple_outputi(out, u.lu, 10, 0, width, flags, 'a');
+							pc += simple_outputi(out, end, u.lu, 10, 0, width, flags, 'a');
 							break;
 
 						case('x'):
 							u.lu = va_arg(ap, unsigned long);
-							pc += simple_outputi(out, u.lu, 16, 0, width, flags, 'a');
+							pc += simple_outputi(out, end, u.lu, 16, 0, width, flags, 'a');
 							break;
 
 						case('X'):
 							u.lu = va_arg(ap, unsigned long);
-							pc += simple_outputi(out, u.lu, 16, 0, width, flags, 'A');
+							pc += simple_outputi(out, end, u.lu, 16, 0, width, flags, 'A');
 							break;
 
 						case('l'):
@@ -232,22 +237,22 @@ static int simple_vsprintf(char **out, char *format, va_list ap)
 							switch (*format) {
 								case('d'):
 									u.lli = va_arg(ap, long long);
-									pc += simple_outputi(out, u.lli, 10, 1, width, flags, 'a');
+									pc += simple_outputi(out, end, u.lli, 10, 1, width, flags, 'a');
 									break;
 
 								case('u'):
 									u.llu = va_arg(ap, unsigned long long);
-									pc += simple_outputi(out, u.llu, 10, 0, width, flags, 'a');
+									pc += simple_outputi(out, end, u.llu, 10, 0, width, flags, 'a');
 									break;
 
 								case('x'):
 									u.llu = va_arg(ap, unsigned long long);
-									pc += simple_outputi(out, u.llu, 16, 0, width, flags, 'a');
+									pc += simple_outputi(out, end, u.llu, 16, 0, width, flags, 'a');
 									break;
 
 								case('X'):
 									u.llu = va_arg(ap, unsigned long long);
-									pc += simple_outputi(out, u.llu, 16, 0, width, flags, 'A');
+									pc += simple_outputi(out, end, u.llu, 16, 0, width, flags, 'A');
 									break;
 
 								default:
@@ -263,22 +268,22 @@ static int simple_vsprintf(char **out, char *format, va_list ap)
 					switch (*format) {
 						case('d'):
 							u.hi = va_arg(ap, int);
-							pc += simple_outputi(out, u.hi, 10, 1, width, flags, 'a');
+							pc += simple_outputi(out, end, u.hi, 10, 1, width, flags, 'a');
 							break;
 
 						case('u'):
 							u.hu = va_arg(ap, unsigned int);
-							pc += simple_outputi(out, u.lli, 10, 0, width, flags, 'a');
+							pc += simple_outputi(out, end, u.lli, 10, 0, width, flags, 'a');
 							break;
 
 						case('x'):
 							u.hu = va_arg(ap, unsigned int);
-							pc += simple_outputi(out, u.lli, 16, 0, width, flags, 'a');
+							pc += simple_outputi(out, end, u.lli, 16, 0, width, flags, 'a');
 							break;
 
 						case('X'):
 							u.hu = va_arg(ap, unsigned int);
-							pc += simple_outputi(out, u.lli, 16, 0, width, flags, 'A');
+							pc += simple_outputi(out, end, u.lli, 16, 0, width, flags, 'A');
 							break;
 
 						case('h'):
@@ -286,22 +291,22 @@ static int simple_vsprintf(char **out, char *format, va_list ap)
 							switch (*format) {
 								case('d'):
 									u.hhi = va_arg(ap, int);
-									pc += simple_outputi(out, u.hhi, 10, 1, width, flags, 'a');
+									pc += simple_outputi(out, end, u.hhi, 10, 1, width, flags, 'a');
 									break;
 
 								case('u'):
 									u.hhu = va_arg(ap, unsigned int);
-									pc += simple_outputi(out, u.lli, 10, 0, width, flags, 'a');
+									pc += simple_outputi(out, end, u.lli, 10, 0, width, flags, 'a');
 									break;
 
 								case('x'):
 									u.hhu = va_arg(ap, unsigned int);
-									pc += simple_outputi(out, u.lli, 16, 0, width, flags, 'a');
+									pc += simple_outputi(out, end, u.lli, 16, 0, width, flags, 'a');
 									break;
 
 								case('X'):
 									u.hhu = va_arg(ap, unsigned int);
-									pc += simple_outputi(out, u.lli, 16, 0, width, flags, 'A');
+									pc += simple_outputi(out, end, u.lli, 16, 0, width, flags, 'A');
 									break;
 
 								default:
@@ -318,7 +323,7 @@ static int simple_vsprintf(char **out, char *format, va_list ap)
 		}
 		else {
 out:
-			simple_outputchar (out, *format);
+			simple_outputchar (out, end, *format);
 			++pc;
 		}
 	}
@@ -332,7 +337,7 @@ int simple_printf(char *fmt, ...)
 	int r;
 
 	va_start(ap, fmt);
-	r = simple_vsprintf(NULL, fmt, ap);
+	r = simple_vsprintf(NULL, NULL, fmt, ap);
 	va_end(ap);
 
 	return r;
@@ -344,7 +349,20 @@ int simple_sprintf(char *buf, char *fmt, ...)
 	int r;
 
 	va_start(ap, fmt);
-	r = simple_vsprintf(&buf, fmt, ap);
+	r = simple_vsprintf(&buf, NULL, fmt, ap);
+	va_end(ap);
+
+	return r;
+}
+
+int simple_snprintf(char *buf, size_t buf_size, char *fmt, ...)
+{
+	va_list ap;
+	int r;
+
+	char* end = buf + buf_size;
+	va_start(ap, fmt);
+	r = simple_vsprintf(&buf, end, fmt, ap);
 	va_end(ap);
 
 	return r;
@@ -355,6 +373,7 @@ int simple_sprintf(char *buf, char *fmt, ...)
 
 #define printf simple_printf
 #define sprintf simple_sprintf
+#define snprintf simple_snprintf
 
 int main(int argc, char *argv[])
 {
@@ -409,5 +428,11 @@ int main(int argc, char *argv[])
 
 	sprintf(buf, "decimal:\t\"%d\"\n", -2345);
 	printf("sprintf: %s", buf);
+
+	snprintf(buf, sizeof(buf), "decimal:\t\"%d\"\n", -2345);
+	printf("snprintf: %s", buf);
+
+	snprintf(buf, 5, "decimal:\t\"%d\"\n", -2345);
+	printf("snprintf: %s", buf);
 }
 #endif /* TEST */
