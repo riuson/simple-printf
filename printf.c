@@ -35,11 +35,11 @@
 
 int putchar(int c);
 
-static void simple_outputchar(char **str, const char *end, char c)
+static int simple_outputchar(char **str, const char *end, char c)
 {
 	if (str) {
 		if (end && *str >= end)	{
-			return;
+			return 0;
 		}
 
 		**str = c;
@@ -47,6 +47,8 @@ static void simple_outputchar(char **str, const char *end, char c)
 	} else {
 		putchar(c);
 	}
+
+	return 1;
 }
 
 enum flags {
@@ -69,17 +71,14 @@ static int prints(char **out, const char *end, const char *string, int width, in
 	}
 	if (!(flags & PAD_RIGHT)) {
 		for ( ; width > 0; --width) {
-			simple_outputchar(out, end, padchar);
-			++pc;
+			pc += simple_outputchar(out, end, padchar);
 		}
 	}
 	for ( ; *string ; ++string) {
-		simple_outputchar(out, end, *string);
-		++pc;
+		pc += simple_outputchar(out, end, *string);
 	}
 	for ( ; width > 0; --width) {
-		simple_outputchar(out, end, padchar);
-		++pc;
+		pc += simple_outputchar(out, end, padchar);
 	}
 
 	return pc;
@@ -118,8 +117,7 @@ static int simple_outputi(char **out, const char *end, long long i, int base, in
 
 	if (neg) {
 		if( width && (flags & PAD_ZERO) ) {
-			simple_outputchar (out, end, '-');
-			++pc;
+			pc += simple_outputchar (out, end, '-');
 			--width;
 		}
 		else {
@@ -323,8 +321,7 @@ static int simple_vsprintf(char **out, const char *end, char *format, va_list ap
 		}
 		else {
 out:
-			simple_outputchar (out, end, *format);
-			++pc;
+			pc += simple_outputchar (out, end, *format);
 		}
 	}
 	if (out) **out = '\0';
